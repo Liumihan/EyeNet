@@ -19,8 +19,7 @@ def train():
     vis = visdom.Visdom(env='EyeNet_0.1', port=11223)
     tsf = transforms.Compose([CropEye(shaking=True), ToTensor()])
 
-    datasets = {phase: UnityEyeDataset(data_dir=opt.data_dir, transform=tsf, sub_set=getattr(opt, '{}_subset'.format(phase)))
-                for phase in ['train', 'val']}
+    datasets = {phase: UnityEyeDataset(data_dir=getattr(opt, phase + "_data_dir"), transform=tsf)for phase in ['train', 'val']}
     dataloaders = {phase: DataLoader(dataset=datasets[phase] , batch_size=opt.batch_size, shuffle=True, num_workers=4)
                    for phase in ['train', 'val']}
 

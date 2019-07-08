@@ -208,7 +208,7 @@ class LP300WDataset(Dataset):
         return roi_img, pts
 
 
-def visualize_UintyEyesdataset(dataset = UnityEyeDataset(data_dir=opt.dev_data_dir)):
+def visualize_UintyEyesdataset(dataset = UnityEyeDataset(data_dir=opt.train_data_dir)):
     print(len(dataset))
     for sample in dataset:
         image = sample["image"]

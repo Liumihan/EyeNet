@@ -5,15 +5,11 @@ class Config(object):
     weight_decay = 1e-5
     downsample_scale = 1
     gau_size = 7
+    dev = 100
     # UnityEyes dataset
-    dev_data_dir = '/media/liumihan/HDD_Documents/眼部数据集/100wUnityEyes/UnityEyes1000sample'
-    # train_data_dir = '/media/liumihan/HDD_Documents/眼部数据集/UnityEyes/imgs'
-    # val_data_dir = '/media/liumihan/HDD_Documents/眼部数据集/UnityEyes/val_imgs'
+    train_data_dir = "/media/liumihan/HDD_Documents/眼部数据集/100wUnityEyes/train"
+    val_data_dir = "/media/liumihan/HDD_Documents/眼部数据集/100wUnityEyes/val"
 
-
-    data_dir = '/media/liumihan/HDD_Documents/眼部数据集/100wUnityEyes/UnityEyes1000sample'
-    train_subset = 200
-    val_subset = -100
 
     # MPIIGaze dataset
     MPIIGaze_img_dir = '/media/liumihan/HDD_Documents/眼部数据集/MPIIGaze/Data/Normalized/imgs'
