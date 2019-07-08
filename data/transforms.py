@@ -11,11 +11,14 @@ class ToTensor(object):
     def __call__(self, sample):
 
         image = sample["image"]
+        gaze = sample["pitchyaw"]
 
         image = image.transpose(2, 0, 1)
         image = torch.from_numpy(image.astype(np.float32))
+        gaze = torch.from_numpy(gaze.astype(np.float32))
 
         sample["image"] = image
+        sample["pitchyaw"] = gaze
 
         return sample
 

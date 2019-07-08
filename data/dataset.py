@@ -7,9 +7,9 @@ from glob import glob
 from config import opt
 import scipy.io as sio
 from torchvision import transforms
-from data.utils import draw_points
 from torch.utils.data import Dataset
 from collections.abc import Iterable
+from data.utils import draw_points, draw_gaze
 from data.utils import vector_to_pitchyaw, pitchyaw_to_vector
 
 class UnityEyeDataset(Dataset):
@@ -220,13 +220,9 @@ def visualize_UintyEyesdataset(dataset = UnityEyeDataset(data_dir=opt.train_data
 
         # 画gaze 的方向
         iris_center = ldmks[0]
-        ox, oy = int(iris_center[0]), int(iris_center[1])
-        cv2.arrowedLine(image_dotted, (ox, oy), (int(ox+80*look_vec[0]), int(oy+80*look_vec[1])),
-                        color=(0, 255, 255), thickness=2)
         cal_look_vec = pitchyaw_to_vector(pitchyaw)
         cal_pitchyaw = vector_to_pitchyaw(cal_look_vec)
-        cv2.arrowedLine(image_dotted, (ox, oy), (int(ox+80*cal_look_vec[0]), int(oy+80*cal_look_vec[1])),
-                        color=(0, 0, 255), thickness=1)
+        draw_gaze(image_dotted, pitchyaw, iris_center)
         cv2.imshow('img_dotted', image_dotted)
         print('T[{:.2f}, {:.2f}] C[{:.2f}, {:.2f}]'.format(pitchyaw[0], pitchyaw[1], cal_pitchyaw[0], cal_pitchyaw[1]))
 

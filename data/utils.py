@@ -116,7 +116,7 @@ def vector_to_pitchyaw(vector):
     yaw = np.arctan2(vector[0], -vector[2]) / np.pi * 180
 
     # pitch 向下为正方向, yaw 向右为正方向
-    return pitch, yaw
+    return np.array((pitch, yaw))
 
 
 # 假定向量的长度为1, x 轴向右, y 轴向下, z轴向内, 以z轴负方向为初始方向的pitch和yaw
@@ -152,6 +152,17 @@ def draw_points(image_bgr, points):
         cv2.polylines(image_bgr, pts=np.array([part_points]), isClosed=False, color=(255, 255, 255))
 
     return image_bgr
+
+
+def draw_gaze(image, pitchyaw, start=None):
+    if start is not None:
+        ox, oy = int(start[0]), int(start[1])
+    else:
+        ox, oy = int(image.shape[1]/2), int(image.shape[0]/2)
+
+    cal_look_vec = pitchyaw_to_vector(pitchyaw)
+    cv2.arrowedLine(image, (ox, oy), (int(ox + 80 * cal_look_vec[0]), int(oy + 80 * cal_look_vec[1])),
+                    color=(0, 255, 255), thickness=2)
 
 def _gaussian_distribution(size=3, sigma=0.25, amplitude=1, normalize=False,
               width=None, height=None, sigma_horz=None, sigma_vert=None):
