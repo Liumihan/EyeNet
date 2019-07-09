@@ -1,8 +1,8 @@
 class Config(object):
 
-    epochs = 2000
-    lr = 5e-5
-    weight_decay = 1e-5
+    epochs = 500
+    lr = 2e-4
+    weight_decay = 1e-4
     downsample_scale = 1
     gau_size = 7
     dev = 100
@@ -22,10 +22,11 @@ class Config(object):
     weight_save_dir = './weights/'
     # 如果想从头训练的话就将他置为None
     # checkpoint_path = 'weights/ELG_epoch38.pth'
+    # checkpoint_path = "weights/EyeNet-0.1_epoch1.pth"
     checkpoint_path = None
-    saving_prefix = 'EyeNet_ldmk-0.1'
-
-    batch_size = 2
+    # saving_prefix = 'EyeNet_ldmk-0.1'
+    saving_prefix = 'EyeNet_gaze-0.1'
+    batch_size = 4
     plot_every_iter = 3
 
 

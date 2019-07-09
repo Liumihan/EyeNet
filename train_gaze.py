@@ -4,9 +4,9 @@ import visdom
 import numpy as np
 from config import opt
 from torch import optim
-from model import EyeNet_ldmk
-from torch.nn import MSELoss
-from vis import visualize_sample
+from model import EyeNet_gaze
+from torch.nn import MSELoss, SmoothL1Loss
+from vis import visualize_sample_gaze
 from torchvision import transforms
 from torch.utils.data import DataLoader
 from data.dataset import UnityEyeDataset
@@ -16,14 +16,14 @@ from data.utils import draw_gaussian, get_points_from_heatmaps
 
 def train():
 
-    vis = visdom.Visdom(env='EyeNet_0.1', port=11223)
-    tsf = transforms.Compose([CropEye(shaking=True), ToTensor()])
+    vis = visdom.Visdom(env='EyeNet_gaze-0.1', port=11223)
+    tsf = transforms.Compose([CropEye(shaking=False), ToTensor()])
 
     datasets = {phase: UnityEyeDataset(data_dir=getattr(opt, phase + "_data_dir"), transform=tsf)for phase in ['train', 'val']}
     dataloaders = {phase: DataLoader(dataset=datasets[phase] , batch_size=opt.batch_size, shuffle=True, num_workers=4)
                    for phase in ['train', 'val']}
 
-    net = EyeNet_ldmk()
+    net = EyeNet_gaze()
 
     start_epoch = 0
     best_epoch_loss = 10000
@@ -41,38 +41,37 @@ def train():
     for epoch in range(start_epoch, opt.epochs, 1):
         train_epoch_loss = 0.0
         val_epoch_loss = 0.0
-        for phase in ['train', 'val']:
+        for phase in ['train']:
             if phase == 'train':
                 net.train()
                 sample_num = len(datasets[phase])
                 iter_per_epoch = math.ceil(sample_num / opt.batch_size)
                 for itr, batch in enumerate(dataloaders[phase]):
-                    t_vmin, t_vmax, t_euler_diff, t_iter_loss = train_phase(batch, optimizer, net, criterion)
+
+                    t_iter_loss, t_itr_diff = train_phase(batch, optimizer, net, criterion, opt.device)
+
                     train_epoch_loss = (train_epoch_loss * itr + t_iter_loss.item()) / (itr + 1)
 
-                    print('[Epoch {} / {}, iter {} / {}] train_loss: {:.6f} max: {:.4f} min: {:.4f}, euler distance:{:.1f}'.format(
-                        epoch, opt.epochs, itr * opt.batch_size, sample_num, t_iter_loss.item(), t_vmax, t_vmin, t_euler_diff
+                    print('[Epoch {} / {}, iter {} / {}] train_loss: {:.6f} pitch diff:{} yaw diff:{}'.format(
+                        epoch, opt.epochs, itr * opt.batch_size, sample_num, t_iter_loss.item(),
+                        abs(t_itr_diff[0]), abs(t_itr_diff[1])
                     ))
                     # # 可视化
                     # 绘制各种线条
                     vis.line(Y=np.array([t_iter_loss.item()]), X=np.array([(epoch * iter_per_epoch) + (itr + 1)]),
                              win='Train_loss',
                              update='append' if (epoch + 1) * (itr + 1) > 0 else None, opts=dict(title='train_loss'))
-                    vis.line(Y=np.array([t_vmax.item()]), X=np.array([(epoch * iter_per_epoch) + (itr + 1)]),
-                             win='t_v_max',
-                             update='append' if (epoch + 1) * (itr + 1) != 0 else None, opts=dict(title='t_v_max'))
-                    vis.line(Y=np.array([t_vmin.item()]), X=np.array([(epoch * iter_per_epoch) + (itr + 1)]),
-                             win="t_v_min",
-                             update='append' if (epoch + 1) * (itr + 1) != 0 else None, opts=dict(title='t_v_min'))
-                    vis.line(Y=np.array([t_euler_diff]), X=np.array([(epoch * iter_per_epoch) + (itr + 1)]),
-                             win="t_euler_distance",
-                             update='append' if (epoch + 1) * (itr + 1) != 0 else None,
-                             opts=dict(title='t_euler_distance'))
+                    vis.line(Y=np.array([t_itr_diff[0].item()]), X=np.array([(epoch * iter_per_epoch) + (itr + 1)]),
+                             win='t_pitch_diff',
+                             update='append' if (epoch + 1) * (itr + 1) != 0 else None, opts=dict(title='t_pitch_diff'))
+                    vis.line(Y=np.array([t_itr_diff[1].item()]), X=np.array([(epoch * iter_per_epoch) + (itr + 1)]),
+                             win="t_yaw_diff",
+                             update='append' if (epoch + 1) * (itr + 1) != 0 else None, opts=dict(title='t_yaw_diff'))
                     # # 图片显示
                     if itr % opt.plot_every_iter == 0:
                         random_idx = np.random.randint(0, len(datasets[phase]))
                         vis_sample = datasets[phase][random_idx]
-                        visualize_sample(vis_sample, net, vis, title='train_sample')
+                        visualize_sample_gaze(vis_sample, net, vis, title='train_sample')
             elif phase == 'val':
                 sample_num = len(datasets[phase])
                 iter_per_epoch = math.ceil(sample_num / opt.batch_size)
@@ -123,48 +122,25 @@ def train():
             }, opt.weight_save_dir + opt.saving_prefix + '_epoch{}.pth'.format(epoch))
 
 
-def train_phase(batch, optimizer, net, criterion):
+def train_phase(batch, optimizer, net, criterion, device="cuda:0"):
     #  训练一个iter
     net.train()
-
-    inputs = batch["image"].to(opt.device)
-    pts = batch['ldmks'].numpy()
-
     optimizer.zero_grad()
+    net.zero_grad()
 
-    heatmaps_pred = net.forward(inputs)[-1]  # 因为在网络里面每一个HG我都保留了，输出
+    inputs = batch["image"].to(device)
+    gaze_targets = batch["pitchyaw"].to(device)
 
-    # 生成heatmap_targets
-    B, C, H, W = heatmaps_pred.size()
-    heatmap_targets = torch.zeros_like(heatmaps_pred, device='cpu').numpy()
-    for b in range(B):
-        for c in range(C):
-            downsample_scale = opt.downsample_scale
-            pt = pts[b, c] / downsample_scale
-            draw_gaussian(image=heatmap_targets[b, c], point=pt, size=opt.gau_size)
-    heatmap_targets = torch.from_numpy(heatmap_targets).to(opt.device)
-
-    # 多loss 回传, 效果不好放弃使用了
-    loss = criterion(heatmap_targets, heatmaps_pred)
+    gaze_pred = net.forward(inputs)
+    loss = criterion(gaze_targets, gaze_pred.squeeze())
     loss.backward()
     optimizer.step()
-    # 预测点与真实点之间的欧拉距离
-    heatmaps_pred_numpy = heatmaps_pred.cpu().detach().numpy()
-    total_distance = 0.0
-    for i, heatmaps in enumerate(heatmaps_pred_numpy):
-        points_pred = get_points_from_heatmaps(heatmaps)
-        diff = pts[i] - points_pred * opt.downsample_scale
-        pow = np.power(diff, 2)
-        summ = np.sum(pow)
-        distence = math.sqrt(summ)
-        total_distance += distence
-    batch_mean_distance = total_distance / opt.batch_size
 
-    # 统计最大值和最小值
-    v_max = torch.max(heatmaps_pred)
-    v_min = torch.min(heatmaps_pred)
+    diff = gaze_targets - gaze_pred.squeeze()
+    diff = torch.abs(diff)
+    diff = diff.mean(dim=0)
 
-    return v_min, v_max, batch_mean_distance, loss
+    return loss, diff
 
 
 def val_phase(batch, net, criterion):

@@ -152,3 +152,39 @@ class DownSampleConvBlock(Module):
     def forward(self, x):
         out = self.block.forward(x)
         return out
+
+
+class GazeEstimatBlock(Module):
+    """
+    直接根据HGnet 生成的feature map 来预测look vector
+    """
+    # todo 改成非固定的kernel size
+    def __init__(self, feature_channels=128, num_classes=2):
+        super(GazeEstimatBlock, self).__init__()
+        self.feature_channels = feature_channels
+
+        # self.downsample_block = Sequential(
+        #     ResBlock(in_channels=64, out_channels=64),
+        #     MaxPool2d(kernel_size=(2, 2)), # 64 × 48 × 80
+        #     ResBlock(in_channels=64, out_channels=32),
+        #     MaxPool2d(kernel_size=(2, 2)), # 32 * 24 * 40
+        #     ResBlock(in_channels=32, out_channels=16),
+        #     MaxPool2d(kernel_size=(2, 2)), # 16 * 12 * 20
+        #     ResBlock(in_channels=16, out_channels=3)
+        # )
+        self.downsample_block = Sequential(
+            ResBlock(feature_channels, int(feature_channels/2)),
+            MaxPool2d(kernel_size=(2, 2)),
+            ResBlock(int(feature_channels/2), int(feature_channels/4)),
+            MaxPool2d(kernel_size=(2, 2)),
+            ResBlock(int(feature_channels/4), int(feature_channels/8)),
+            MaxPool2d(kernel_size=(2, 2)),
+            Conv2d(int(feature_channels/8), out_channels=num_classes, kernel_size=1, stride=1)
+        )
+        # 最后输出的每一个channel 代表一个向量的维度
+        self.glob_average_pool = AvgPool2d(kernel_size=(12, 20))  # 2 × 1 × 1
+
+    def forward(self, x):
+        x = self.downsample_block.forward(x)
+        out = self.glob_average_pool.forward(x)
+        return out

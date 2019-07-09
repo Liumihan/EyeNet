@@ -1,1 +1,1 @@
-from .EyeNet import EyeNet_ldmk
+from .EyeNet import EyeNet_ldmk, EyeNet_gaze

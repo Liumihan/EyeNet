@@ -82,9 +82,6 @@ class EyeNet_ldmk(EyeNet):
 
         return pred_points
 
-
-
-
 class EyeNet_gaze(EyeNet):
     def __init__(self, hg_num=3, input_channels=3, num_classes=2, feature_channels=128):  # class 代表pitch , yaw
         super(EyeNet_gaze, self).__init__()
@@ -104,21 +101,25 @@ class EyeNet_gaze(EyeNet):
             setattr(self, 'HG_expand_layer_{}'.format(i), HGBlock_expand(feature_channels, num_classes=self.classes))
         self.last_hg = HGBlock(feature_channels, depth=4)
 
-        self.look_vector_predictor = Sequential(
-                                                Conv2d(feature_channels, feature_channels, 1, 1),
-                                                BatchNorm2d(feature_channels),
-                                                ReLU(True),
-                                                Conv2d(feature_channels, self.classes, 1, 1)
-        )
+        # self.look_vector_predictor = Sequential(
+        #     ResBlock(feature_channels, feature_channels),
+        #     DownSampleConvBlock(feature_channels, int(feature_channels/2)),  # 48 x 80
+        #     DownSampleConvBlock(int(feature_channels/2), int(feature_channels/4)),  # 24 x 40
+        #     DownSampleConvBlock(int(feature_channels/4), int(feature_channels/8)),# 12 x 20
+        #     Conv2d(in_channels=int(feature_channels/8), out_channels=self.classes, kernel_size=1, stride=1))
+        self.gaze_predictor = GazeEstimatBlock(feature_channels, num_classes)
 
     def forward(self, x):
+
         x = self.res_before(x)
         for i in range(self.hg_num - 1):
             temp_output, x = getattr(self, 'HG_expand_layer_{}'.format(i))(x)
         x = self.last_hg(x)
-        x = self.look_vector_predictor(x)
-        h, w = x.size(2), x.size(3)
-        output = F.avg_pool2d(x, kernel_size=(h, w))
+        x = self.gaze_predictor(x)
+        # h, w = x.size(2), x.size(3)
+        # output = F.avg_pool2d(x, kernel_size=(h, w))
+        # output = output.squeeze(-1).squeeze(-1)
+        output = x
 
         return output
 
@@ -134,7 +135,7 @@ def test_eyenet_ldmk():
 
 def test_eyenet_gaze():
     net = EyeNet_gaze()
-    dummy_input = torch.randn(size=(1, 3, 96, 160))
+    dummy_input = torch.randn(size=(3, 3, 96, 160))
     output = net.forward(dummy_input)
     print(output.size())
     with SummaryWriter(comment='Eyenet_gaze-0') as w:
