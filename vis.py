@@ -62,3 +62,13 @@ def visualize_sample_gaze(sample, net, vis, title):
 
     draw_gaze(gt_dotted_image, gt_gaze)
     vis.image(gt_dotted_image.transpose(2, 0, 1), win='gt_dotted_img' + title, opts={'title': title + '_gt'})
+
+
+def vis_lines(vis, lines):
+    """
+    可视化所有的训练数据,比如loss
+    :param: lines (dict), {"line_name": line(x, y)} 其中x 和 y 都是(np.NdArray) shape为(1, 1)
+    :return: void
+    """
+    for line_name, num in lines.items():
+        vis.line(Y=num[1], X=num[0], win=line_name, update='append' if num[0][0]!= 0 else None, opts=dict(title=line_name))
