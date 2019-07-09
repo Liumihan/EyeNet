@@ -41,7 +41,7 @@ def train():
     for epoch in range(start_epoch, opt.epochs, 1):
         train_epoch_loss = 0.0
         val_epoch_loss = 0.0
-        for phase in ['train']:
+        for phase in ['train', 'val']:
             if phase == 'train':
                 sample_num = len(datasets[phase])
                 iter_per_epoch = math.ceil(sample_num / opt.batch_size)
@@ -50,8 +50,8 @@ def train():
                     train_epoch_loss = (train_epoch_loss * itr + t_iter_loss.item()) / (itr + 1)
                     # 打印输出
                     print('[Epoch {} / {}, iter {} / {}] train_loss: {:.6f} pitch diff:{} yaw diff:{}'.format(
-                        epoch, opt.epochs, itr * opt.batch_size, sample_num, t_iter_loss.item(),
-                        abs(t_itr_diff[0]), abs(t_itr_diff[1])))
+                          epoch, opt.epochs, itr * opt.batch_size, sample_num, t_iter_loss.item(),
+                          abs(t_itr_diff[0]), abs(t_itr_diff[1])))
                     # # 可视化
                     # 绘制各种线条
                     x_value = np.array([(epoch * iter_per_epoch) + (itr + 1)])
@@ -59,15 +59,6 @@ def train():
                              "t_pitch_diff": (x_value, np.array([t_itr_diff[0].item()])),
                              "t_yaw_diff": (x_value, np.array([t_itr_diff[1].item()]))}
                     vis_lines(vis, lines)
-                    # vis.line(Y=np.array([t_iter_loss.item()]), X=np.array([(epoch * iter_per_epoch) + (itr + 1)]),
-                    #          win='Train_loss',
-                    #          update='append' if (epoch + 1) * (itr + 1) > 0 else None, opts=dict(title='train_loss'))
-                    # vis.line(Y=np.array([t_itr_diff[0].item()]), X=np.array([(epoch * iter_per_epoch) + (itr + 1)]),
-                    #          win='t_pitch_diff',
-                    #          update='append' if (epoch + 1) * (itr + 1) != 0 else None, opts=dict(title='t_pitch_diff'))
-                    # vis.line(Y=np.array([t_itr_diff[1].item()]), X=np.array([(epoch * iter_per_epoch) + (itr + 1)]),
-                    #          win="t_yaw_diff",
-                    #          update='append' if (epoch + 1) * (itr + 1) != 0 else None, opts=dict(title='t_yaw_diff'))
                     # # 图片显示
                     if itr % opt.plot_every_iter == 0:
                         random_idx = np.random.randint(0, len(datasets[phase]))
@@ -76,40 +67,30 @@ def train():
             elif phase == 'val':
                 sample_num = len(datasets[phase])
                 iter_per_epoch = math.ceil(sample_num / opt.batch_size)
-                net.eval()
                 for itr, batch in enumerate(dataloaders[phase]):
-                    v_vmin, v_vmax, v_euler_diff, v_iter_loss = val_phase(batch, net, criterion)
-                    val_epoch_loss = (val_epoch_loss * itr + v_iter_loss.item()) / (itr + 1)
+                    v_itr_loss, v_itr_diff = val_phase(batch, net, criterion)
+                    val_epoch_loss = (val_epoch_loss * itr + v_itr_loss.item()) / (itr + 1)
 
-                    print('[Epoch {} / {}, iter {} / {}] val_loss: {:.6f} max: {:.4f} min: {:.4f}, euler distance:{:.1f}'.format(
-                        epoch, opt.epochs, itr * opt.batch_size, sample_num, v_iter_loss.item(), v_vmax, v_vmin, v_euler_diff
-                    ))
+                    print('[Epoch {} / {}, iter {} / {}] val_loss: {:.6f} pitch diff:{} yaw diff:{}'.format(
+                          epoch, opt.epochs, itr * opt.batch_size, sample_num, v_itr_loss.item(),
+                          abs(v_itr_diff[0]), abs(v_itr_diff[1])))
                     # # 可视化
                     # 绘制各种线条
-                    vis.line(Y=np.array([v_iter_loss.item()]), X=np.array([(epoch * iter_per_epoch) + (itr + 1)]),
-                             win='val_loss',
-                             update='append' if (epoch + 1) * (itr + 1) > 0 else None, opts=dict(title='val_loss'))
-                    vis.line(Y=np.array([v_vmax.item()]), X=np.array([(epoch * iter_per_epoch) + (itr + 1)]),
-                             win='v_v_max',
-                             update='append' if (epoch + 1) * (itr + 1) != 0 else None, opts=dict(title='v_v_max'))
-                    vis.line(Y=np.array([v_vmin.item()]), X=np.array([(epoch * iter_per_epoch) + (itr + 1)]),
-                             win="v_v_min",
-                             update='append' if (epoch + 1) * (itr + 1) != 0 else None, opts=dict(title='v_v_min'))
-                    vis.line(Y=np.array([v_euler_diff]), X=np.array([(epoch * iter_per_epoch) + (itr + 1)]),
-                             win="v_euler_distance",
-                             update='append' if (epoch + 1) * (itr + 1) != 0 else None,
-                             opts=dict(title='v_euler_distance'))
-
+                    x_value = np.array([(epoch * iter_per_epoch) + (itr + 1)])
+                    lines = {"v_loss": (x_value, np.array([v_itr_loss.item()])),
+                             "v_pitch_diff": (x_value, np.array([v_itr_diff[0].item()])),
+                             "v_yaw_diff": (x_value, np.array([v_itr_diff[1].item()]))}
+                    vis_lines(vis, lines)
                     if itr % opt.plot_every_iter == 0:
                         random_idx = np.random.randint(0, len(datasets[phase]))
                         vis_sample = datasets[phase][random_idx]
-                        visualize_sample(vis_sample, net, vis, title='val_sample')
-
+                        visualize_sample_gaze(vis_sample, net, vis, title='val_sample')
+        # 绘制每一个epoch的 train loss 和 val Loss
         vis.line(Y=np.array([train_epoch_loss, val_epoch_loss]).reshape(1, 2),
                  X=np.array([epoch, epoch]).reshape(1, 2),
                  win='epoch_loss', update='append' if epoch > 0 else None,
-                 opts={'title': 'epoch loss', 'legend': ['train_phase loss', 'val_phase loss']})
-
+                 opts={'title': 'epoch loss', 'legend': ['train loss', 'val loss']})
+        # 是否需要保存模型
         print('epoch_loss: {:.5f} old_best_epoch_loss: {:.5f}'.format(train_epoch_loss, best_epoch_loss))
         if val_epoch_loss < best_epoch_loss:
             print('epoch loss < best_epoch_loss, save these weights.')
@@ -163,6 +144,4 @@ def val_phase(batch, net, criterion, device="cuda:0"):
 
 
 if __name__ == '__main__':
-    # from data.utils import find_wrong_imgs
-    # find_wrong_imgs(opt.data_dir)
     train()
