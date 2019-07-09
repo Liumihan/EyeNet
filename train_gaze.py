@@ -1,10 +1,12 @@
 import math
+import copy
 import torch
 import visdom
 import numpy as np
 from config import opt
 from torch import optim
-from model import EyeNet_gaze
+from model import EyeNet_gaze, EyeNet_ldmk
+from model.utils import GazeEstimatBlock
 from torch.nn import MSELoss, SmoothL1Loss
 from vis import visualize_sample_gaze, vis_lines
 from torchvision import transforms
@@ -23,15 +25,22 @@ def train():
     dataloaders = {phase: DataLoader(dataset=datasets[phase] , batch_size=opt.batch_size, shuffle=True, num_workers=4)
                    for phase in ['train', 'val']}
 
-    net = EyeNet_gaze()
-
+    # net = EyeNet_gaze()
+    # 尝试迁移学习
+    net_ldmk = EyeNet_ldmk()
     start_epoch = 0
     best_epoch_loss = 10000
     if opt.checkpoint_path:
         checkpoint = torch.load(opt.checkpoint_path, map_location=opt.device)
-        net.load_state_dict(checkpoint['net_state_dict'])
+        net_ldmk.load_state_dict(checkpoint['net_state_dict'])
         start_epoch = checkpoint['epoch'] + 1
-        best_epoch_loss = checkpoint['val_epoch_loss']
+        # best_epoch_loss = checkpoint['val_epoch_loss']
+
+    # 将网络的尾部改成gaze_estimateor
+    net = copy.deepcopy(net_ldmk)
+    num_ftrs = 128  # 这里设置成了固定值
+    net.look_vector_predictor = GazeEstimatBlock(num_ftrs, 2)
+
 
     net.float()
     net.to(opt.device)

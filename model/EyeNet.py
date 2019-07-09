@@ -63,9 +63,9 @@ class EyeNet_ldmk(EyeNet):
             outputs.append(temp_output)
         x = self.last_hg(x)
         output = self.look_vector_predictor(x)
-        outputs.append(output)
+        # outputs.append(output)
         # 也就是说outputs[-1]是真正的网络的输出
-        return outputs
+        return output
 
     def predict(self, image, device='cuda:0'):
         """

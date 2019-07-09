@@ -22,8 +22,8 @@ class Config(object):
     weight_save_dir = './weights/'
     # 如果想从头训练的话就将他置为None
     # checkpoint_path = 'weights/ELG_epoch38.pth'
-    # checkpoint_path = "weights/EyeNet-0.1_epoch1.pth"
-    checkpoint_path = None
+    checkpoint_path = "weights/EyeNet-0.1_epoch1.pth"
+    # checkpoint_path = None
     # saving_prefix = 'EyeNet_ldmk-0.1'
     saving_prefix = 'EyeNet_gaze-0.1'
     batch_size = 4
