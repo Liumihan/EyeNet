@@ -26,7 +26,7 @@ class Config(object):
     # checkpoint_path = None
     # saving_prefix = 'EyeNet_ldmk-0.1'
     saving_prefix = 'EyeNet_gaze-0.1'
-    batch_size = 4
+    batch_size = 4  # batch_size 必须大于1, 不然在计算loss的时候Batch这个维度会被squeeze掉
     plot_every_iter = 3
 
 

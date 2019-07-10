@@ -58,7 +58,7 @@ def train():
                     t_iter_loss, t_itr_diff = train_phase(batch, optimizer, net, criterion, opt.device)
                     train_epoch_loss = (train_epoch_loss * itr + t_iter_loss.item()) / (itr + 1)
                     # 打印输出
-                    print('[Epoch {} / {}, iter {} / {}] train_loss: {:.6f} pitch diff:{} yaw diff:{}'.format(
+                    print('[Epoch {} / {}, iter {} / {}] train_loss: {:4.2f} pitch diff:{:4.2f} yaw diff:{:4.2f}'.format(
                           epoch, opt.epochs, itr * opt.batch_size, sample_num, t_iter_loss.item(),
                           abs(t_itr_diff[0]), abs(t_itr_diff[1])))
                     # # 可视化
@@ -80,7 +80,7 @@ def train():
                     v_itr_loss, v_itr_diff = val_phase(batch, net, criterion)
                     val_epoch_loss = (val_epoch_loss * itr + v_itr_loss.item()) / (itr + 1)
 
-                    print('[Epoch {} / {}, iter {} / {}] val_loss: {:.6f} pitch diff:{} yaw diff:{}'.format(
+                    print('[Epoch {} / {}, iter {} / {}] val_loss: {:4.2f} pitch diff:{:4.2f} yaw diff:{:4.2f}'.format(
                           epoch, opt.epochs, itr * opt.batch_size, sample_num, v_itr_loss.item(),
                           abs(v_itr_diff[0]), abs(v_itr_diff[1])))
                     # # 可视化
@@ -100,7 +100,7 @@ def train():
                  win='epoch_loss', update='append' if epoch > 0 else None,
                  opts={'title': 'epoch loss', 'legend': ['train loss', 'val loss']})
         # 是否需要保存模型
-        print('epoch_loss: {:.5f} old_best_epoch_loss: {:.5f}'.format(train_epoch_loss, best_epoch_loss))
+        print('epoch_loss: {:.5f} old_best_epoch_loss: {:.5f}'.format(val_epoch_loss, best_epoch_loss))
         if val_epoch_loss < best_epoch_loss:
             print('epoch loss < best_epoch_loss, save these weights.')
             best_epoch_loss = val_epoch_loss
@@ -143,7 +143,7 @@ def val_phase(batch, net, criterion, device="cuda:0"):
     gaze_pred = net.forward(inputs)
 
     # 多loss 回传, 效果不好放弃使用了
-    loss = criterion(gaze_targets, gaze_pred)
+    loss = criterion(gaze_targets, gaze_pred.squeeze())  # batch_size必须大于1
     # 预测点与真实点之间的欧拉距离
     diff = gaze_targets - gaze_pred.squeeze(-1).squeeze(-1)
     diff = torch.abs(diff)
