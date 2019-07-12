@@ -74,12 +74,15 @@ class UnityEyeDataset(Dataset):
 
 
 class MPIIGazeDataset(Dataset):
-    def __init__(self, img_dir, txt_filepath, eye_size=(160, 96), transform=None):
+    def __init__(self, img_dir, txt_filepath, eye_size=(160, 96), tsf=None, sub_set=None):
         self.eye_size = eye_size
-        self.transform = transform
+        self.transform = tsf
         self.img_dir = img_dir
         self.txt_path = txt_filepath
         self._process_txt()
+        if sub_set:
+            self.filename_list = self.filename_list[:sub_set]
+            self.label_list = self.label_list[:sub_set]
 
     def __len__(self):
         return len(self.filename_list)
@@ -87,12 +90,12 @@ class MPIIGazeDataset(Dataset):
     def __getitem__(self, idx):
         filename = self.filename_list[idx]
         pose_vector, look_vector = self.label_list[idx]
-        gaze = vector_to_pitchyaw(look_vector.reshape(1, 3))
+        gaze = vector_to_pitchyaw(look_vector)
         img_fullpath = os.path.join(self.img_dir, filename)
         image = cv2.imread(img_fullpath, cv2.IMREAD_GRAYSCALE)
         image = cv2.resize(image, self.eye_size)
 
-        sample = {'image_bgr': image, 'pose_vector': pose_vector, 'look_vec': look_vector, 'gaze': gaze}
+        sample = {'image': image, 'pose_vector': pose_vector, 'look_vec': look_vector, 'pitchyaw': gaze}
         if self.transform:
             sample = self.transform(sample)
         return sample
@@ -231,18 +234,24 @@ def visualize_UintyEyesdataset(dataset = UnityEyeDataset(data_dir=opt.train_data
     cv2.destroyAllWindows()
 
 
-# def visualize_MPIIGaze(dataset = MPIIGazeDataset(
-#     img_dir='/media/liumihan/HDD_Documents/眼部数据集/MPIIGaze/Data/Normalized/imgs', txt_filepath='/media/liumihan/HDD_Documents/眼部数据集/MPIIGaze/Data/Normalized/all.txt')):
-#     l = len(dataset)
-#     for i, sample in enumerate(dataset):
-#         img = sample['image_bgr']
-#         look_vec = sample['look_vec']
-#         cv2.arrowedLine(img, pt1=(80, 48), pt2=(int(80+80*look_vec[0]), int(48+80*look_vec[1])), color=(255, 255, 255), thickness=2)
-#         cv2.imshow('img', img)
-#         print('{} / {}'.format(i+1, l))
-#         if cv2.waitKey(1) & 0xff == ord('q'):
-#             break
-#     cv2.destroyAllWindows()
+def visualize_MPIIGaze():
+    dataset = MPIIGazeDataset(
+        img_dir=opt.MPIIGaze_img_dir, txt_filepath=opt.MPIIGaze_train_txt, sub_set=opt.MPIIGaze_sub_set)
+    l = len(dataset)
+    sample = dataset[0]
+    for i, sample in enumerate(dataset):
+        img = sample['image']
+        print(img.shape)
+        look_vec = sample['look_vec']
+        pitchyaw = sample['pitchyaw']
+        cal_look_vec = pitchyaw_to_vector(pitchyaw)
+        cal_pitchyaw = vector_to_pitchyaw(look_vec)
+        img = draw_gaze(img, pitchyaw)
+        cv2.imshow('img', img)
+        print('{} / {}'.format(i+1, l))
+        if cv2.waitKey(0) & 0xff == ord('q'):
+            break
+    cv2.destroyAllWindows()
 
 
 # def test_transform():
@@ -273,10 +282,10 @@ def visualize_LP300wDataset():
     cv2.destroyAllWindows()
 
 if __name__ == "__main__":
-    visualize_UintyEyesdataset()
+    # visualize_UintyEyesdataset()
     # test_transform()
     # img = cv2.imread('/media/liumihan/HDD_Documents/眼部数据集/MPIIGaze/Data/Normalized/imgs/p00day21_left1.jpg')
     # cv2.imshow('img', img)
     # cv2.waitKey(0)
-    # visualize_MPIIGaze(dataset= MPIIGazeDataset(img_dir=opt.MPIIGaze_img_dir, txt_filepath=opt.MPIIGaze_train_txt))
+    visualize_MPIIGaze()
     # visualize_LP300wDataset()

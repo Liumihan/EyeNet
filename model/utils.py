@@ -177,7 +177,7 @@ class GazeEstimatBlock(Module):
 
     def forward(self, x):
 
-        assert x.size(2) == 96 and x.size(3) == 160, '输入的feature的HxW必须是96x160'
+        # assert x.size(2) == 96 and x.size(3) == 160, '输入的feature的HxW必须是96x160'
         x = self.downsample_block.forward(x)
         out = self.glob_average_pool.forward(x)
 

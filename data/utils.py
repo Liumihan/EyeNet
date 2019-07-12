@@ -6,7 +6,6 @@ import math
 import torch
 import pprint
 import numpy as np
-from config import opt
 from tqdm import  tqdm
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -155,14 +154,17 @@ def draw_points(image_bgr, points):
 
 
 def draw_gaze(image, pitchyaw, start=None):
+    if (len(image.shape) < 3):
+        image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR, dst=image)
     if start is not None:
         ox, oy = int(start[0]), int(start[1])
     else:
         ox, oy = int(image.shape[1]/2), int(image.shape[0]/2)
 
     cal_look_vec = pitchyaw_to_vector(pitchyaw)
-    cv2.arrowedLine(image, (ox, oy), (int(ox + 80 * cal_look_vec[0]), int(oy + 80 * cal_look_vec[1])),
+    image = cv2.arrowedLine(image, (ox, oy), (int(ox + 100 * cal_look_vec[0]), int(oy + 100 * cal_look_vec[1])),
                     color=(0, 255, 255), thickness=2)
+    return image
 
 def _gaussian_distribution(size=3, sigma=0.25, amplitude=1, normalize=False,
               width=None, height=None, sigma_horz=None, sigma_vert=None):
@@ -297,6 +299,8 @@ def get_points_from_heatmaps(heatmaps):
 
 if __name__ == "__main__":
     find_wrong_imgs('/home/luoyc/Daihuanhuan/datasets/eye/UnityEyes100w')
+    find_wrong_imgs('/home/luoyc/Daihuanhuan/datasets/eye/UnityEyes/test')
+    find_wrong_imgs('/home/luoyc/Daihuanhuan/datasets/eye/UnityEyes/val')
 
-    # show_3d_eye_ldmks('/media/liumihan/HDD_Documents/眼部数据集/UnityEyes/val_imgs/83.jpg')
-    pass
+    # # show_3d_eye_ldmks('/media/liumihan/HDD_Documents/眼部数据集/UnityEyes/val_imgs/83.jpg')
+    # pass

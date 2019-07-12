@@ -4,6 +4,8 @@ from tensorboardX import SummaryWriter
 # from vis.utils import get_points_from_heatmaps
 from model.utils import *
 from data.utils import get_points_from_heatmaps
+from thop import profile  # 统计模型的参数量和计算量
+from torchsummary import summary
 
 class EyeNet(Module):
     def __init__(self):
@@ -83,7 +85,7 @@ class EyeNet_ldmk(EyeNet):
         return pred_points
 
 class EyeNet_gaze(EyeNet):
-    def __init__(self, hg_num=3, input_channels=3, num_classes=2, feature_channels=128):  # class 代表pitch , yaw
+    def __init__(self, hg_num=3, input_channels=3, num_classes=2, feature_channels=64):  # class 代表pitch , yaw
         super(EyeNet_gaze, self).__init__()
         assert  feature_channels % 4 == 0, 'feature channels 必须要能被4整除'
         self.hg_num = hg_num
@@ -91,7 +93,7 @@ class EyeNet_gaze(EyeNet):
         self.classes = num_classes
         # 因为一般眼部图像的分辨率都较小所以没有添加7x7的卷积层
         self.res_before = Sequential(
-            Conv2d(self.in_channels, int(feature_channels/4), kernel_size=3, stride=1, padding=1),
+            Conv2d(self.in_channels, int(feature_channels/4), kernel_size=7, stride=2, padding=3),
             BatchNorm2d(int(feature_channels/4)),
             ReLU(True),
             ResBlock(in_channels=int(feature_channels/4), out_channels=int(feature_channels/2)),
@@ -125,26 +127,37 @@ class EyeNet_gaze(EyeNet):
 
 
 def test_eyenet_ldmk():
-    net = EyeNet_ldmk()
+    net = EyeNet_ldmk(hg_num=3)
     dummy_input = torch.randn(size=(1, 3, 96, 160))
     output = net.forward(dummy_input)
-    print(output[-1].size())
-    with SummaryWriter(comment='Eyenet-0') as w:
+    print(output.size())
+    flops, params = profile(model=net, inputs=(dummy_input, ))
+    print("FLOPS: {}, Params:{} ".format(flops, params))
+
+    summary(net.to('cuda:0'), input_size=(3, 96, 160))
+
+    net.to('cpu')
+    with SummaryWriter(comment='Eyenet_ldmks-0') as w:
         w.add_graph(net, dummy_input)
 
 
 def test_eyenet_gaze():
-    net = EyeNet_gaze()
-    dummy_input = torch.randn(size=(3, 3, 96, 160))
+    net = EyeNet_gaze(hg_num=3)
+    dummy_input = torch.randn(size=(1, 3, 96, 160))
     output = net.forward(dummy_input)
     print(output.size())
+    flops, params = profile(model=net, inputs=(dummy_input, ))
+    print("FLOPS: {}, Params:{} ".format(flops, params))
+
+    summary(net.to('cuda:0'), input_size=(3, 96, 160))
+    net.to('cpu')
     with SummaryWriter(comment='Eyenet_gaze-0') as w:
         w.add_graph(net, dummy_input)
 
 
 if __name__ == '__main__':
     test_eyenet_gaze()
-
+    # test_eyenet_ldmk()
 
 
 

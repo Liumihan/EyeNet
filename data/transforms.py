@@ -13,6 +13,9 @@ class ToTensor(object):
         image = sample["image"]
         gaze = sample["pitchyaw"]
 
+        if (len(image.shape) < 3):
+            image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR, dst=image)
+
         image = image.transpose(2, 0, 1)
         image = torch.from_numpy(image.astype(np.float32))
         gaze = torch.from_numpy(gaze.astype(np.float32))
@@ -24,6 +27,7 @@ class ToTensor(object):
 
 
 class CropEye(object):
+    """只能对于UnityEyes数据集使用"""
 
     def __init__(self, size=(160, 96), shaking=True):
         self.size = size
@@ -67,6 +71,16 @@ class CropEye(object):
 
         return sample
 
+
+class RandomTranslate(object):
+    """随机平移2-10个pxl"""
+    def __call__(self, sample):
+        image = sample['image']
+
+        t_vec = np.random.randint(2, 10, size=(1, 2), dtype=np.float32)
+        M = np.hstack((np.eye(2, 2, 1, dtype=np.float32), t_vec))
+
+        pass
 
 
 class Blur(object):

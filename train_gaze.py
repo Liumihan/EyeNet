@@ -11,36 +11,35 @@ from torch.nn import MSELoss, SmoothL1Loss
 from vis import visualize_sample_gaze, vis_lines
 from torchvision import transforms
 from torch.utils.data import DataLoader
-from data.dataset import UnityEyeDataset
+from data.dataset import UnityEyeDataset, MPIIGazeDataset
 from data.transforms import ToTensor, CropEye
-from data.utils import draw_gaussian, get_points_from_heatmaps
 
 
-def train():
+def train(datasets):
+    """
+    训练模型的函数
+    :param datasets: 带有tsf的数据集
+    :return:
+    """
 
     vis = visdom.Visdom(env='EyeNet_gaze-0.1', port=11223)
-    tsf = transforms.Compose([CropEye(shaking=False), ToTensor()])
-
-    datasets = {phase: UnityEyeDataset(data_dir=getattr(opt, phase + "_data_dir"), transform=tsf)for phase in ['train', 'val']}
     dataloaders = {phase: DataLoader(dataset=datasets[phase] , batch_size=opt.batch_size, shuffle=True, num_workers=4)
                    for phase in ['train', 'val']}
 
-    # net = EyeNet_gaze()
-    # 尝试迁移学习
-    net_ldmk = EyeNet_ldmk()
+    net = EyeNet_gaze()
     start_epoch = 0
     best_epoch_loss = 10000
-    if opt.checkpoint_path:
-        checkpoint = torch.load(opt.checkpoint_path, map_location=opt.device)
-        net_ldmk.load_state_dict(checkpoint['net_state_dict'])
-        start_epoch = checkpoint['epoch'] + 1
+    # 尝试迁移学习
+    # net_ldmk = EyeNet_ldmk()
+    # if opt.checkpoint_path:
+    #     checkpoint = torch.load(opt.checkpoint_path, map_location=opt.device)
+    #     net_ldmk.load_state_dict(checkpoint['net_state_dict'])
+    #     start_epoch = checkpoint['epoch'] + 1
         # best_epoch_loss = checkpoint['val_epoch_loss']
-
-    # 将网络的尾部改成gaze_estimateor
-    net = copy.deepcopy(net_ldmk)
-    num_ftrs = 128  # 这里设置成了固定值
-    net.look_vector_predictor = GazeEstimatBlock(num_ftrs, 2)
-
+    # # 将网络的尾部改成gaze_estimateor
+    # net = copy.deepcopy(net_ldmk)
+    # num_ftrs = 128  # 这里设置成了固定值
+    # net.look_vector_predictor = GazeEstimatBlock(num_ftrs, 2)
 
     net.float()
     net.to(opt.device)
@@ -153,4 +152,12 @@ def val_phase(batch, net, criterion, device="cuda:0"):
 
 
 if __name__ == '__main__':
-    train()
+    # # UnityEyes
+    # tsf = transforms.Compose([CropEye(shaking=False), ToTensor()])
+    # datasets = {phase: UnityEyeDataset(data_dir=getattr(opt, phase + "_data_dir"), transform=tsf)for phase in ['train', 'val']}
+    # train(datasets)
+
+    # MPIIGaze
+    tsf = ToTensor()
+    datasets = {phase: MPIIGazeDataset(opt.MPIIGaze_img_dir, opt.MPIIGaze_train_txt, sub_set=opt.MPIIGaze_sub_set, tsf=tsf) for phase in ['train', 'val']}
+    train(datasets)
