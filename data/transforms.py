@@ -2,8 +2,8 @@ import cv2
 import torch
 import numpy as np
 from config import opt
-from data.dataset import UnityEyeDataset
-from data.utils import draw_points, draw_gaussian
+from data.dataset import UnityEyeDataset, MPIIGazeDataset
+from data.utils import draw_points, draw_gaussian, draw_gaze
 
 
 class ToTensor(object):
@@ -76,11 +76,28 @@ class RandomTranslate(object):
     """随机平移2-10个pxl"""
     def __call__(self, sample):
         image = sample['image']
+        # cv2.imshow('before', image)
+        h, w = image.shape[:2]
+        t_vec = np.random.randint(-10, 10, size=(2, 1))
+        I = np.eye(2, 2)
+        M = np.hstack((np.eye(2, 2, dtype=np.float32), t_vec))
+        image = cv2.warpAffine(image, M, (w, h))
+        # cv2.imshow('after', image)
+        sample['image'] = image
 
-        t_vec = np.random.randint(2, 10, size=(1, 2), dtype=np.float32)
-        M = np.hstack((np.eye(2, 2, 1, dtype=np.float32), t_vec))
+        return sample
 
-        pass
+#TODO
+class Scale(object):
+    """随机缩小或者放大"""
+    def __call__(self, sample):
+        image = sample['image']
+        dimage = np.zeros_like(image)
+        h, w = image.shape[:2]
+        fw, fh = np.random.randint(90, 110, size=(2, )) * 0.01
+        dw, dh = w * fw, h * fh
+        image = cv2.resize(image, dsize=(dw, dh))
+
 
 
 class Blur(object):
@@ -150,7 +167,21 @@ def test_draw_gaussin():
     cv2.destroyAllWindows()
 
 
+def test_randomtranslate():
+    dataset = MPIIGazeDataset(img_dir=opt.MPIIGaze_img_dir, txt_filepath=opt.MPIIGaze_train_txt, tsf=RandomTranslate())
+    for sample in dataset:
+        image = sample['image']
+        pitchyaw = sample['pitchyaw']
+        image = draw_gaze(image, pitchyaw)
+        cv2.imshow('image', image)
+
+        if cv2.waitKey(0) == ord('q'):
+            break
+    cv2.destroyAllWindows()
+
+
 if __name__ == '__main__':
     # test_totensor()
     # test_cropeye()
-    test_draw_gaussin()
+    # test_draw_gaussin()
+    test_randomtranslate()
