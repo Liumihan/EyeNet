@@ -1,6 +1,6 @@
 class Config(object):
 
-    epochs = 500
+    epochs = 20
     lr = 2e-4
     weight_decay = 1e-4
     downsample_scale = 1
@@ -15,11 +15,11 @@ class Config(object):
 
     # MPIIGaze dataset
     MPIIGaze_img_dir = '/media/liumihan/HDD_Documents/眼部数据集/MPIIGaze/Data/Normalized/imgs'
-    # MPIIGaze_train_txt = '/media/liumihan/HDD_Documents/眼部数据集/MPIIGaze/Data/Normalized/left_one_out/p02_leftout/with_out_p02.txt'
+    # 全部
     MPIIGaze_train_txt = '/media/liumihan/HDD_Documents/眼部数据集/MPIIGaze/Data/Normalized/all.txt'
-    # MPIIGaze_val_txt = '/media/liumihan/HDD_Documents/眼部数据集/MPIIGaze/Data/Normalized/left_one_out/p02_leftout/only_p02.txt'
-    # MPIIGaze_val_txt = '/media/liumihan/HDD_Documents/眼部数据集/MPIIGaze/Data/Normalized/left_one_out/p02_leftout/only_p02.txt'
-    MPIIGaze_sub_set = 500
+    # P00 left_out
+    MPIIGaze_train_txt = '/media/liumihan/HDD_Documents/眼部数据集/MPIIGaze/Data/Normalized/left_one_out/p00_leftout/with_out_p01.txt'
+    MPIIGaze_val_txt = '/media/liumihan/HDD_Documents/眼部数据集/MPIIGaze/Data/Normalized/left_one_out/p00_leftout/only_p01.txt'
 
     device = 'cuda:0'
 
@@ -29,9 +29,9 @@ class Config(object):
     # checkpoint_path = "weights/EyeNet-0.1_epoch1.pth"
     checkpoint_path = None
     # saving_prefix = 'EyeNet_ldmk-0.1'
-    saving_prefix = 'EyeNet_gaze-0.1'
-    batch_size = 4  # batch_size 必须大于1, 不然在计算loss的时候Batch这个维度会被squeeze掉
-    plot_every_iter = 3
+    saving_prefix = 'EyeNet_gaze-MPIIGaze_01'
+    batch_size = 32  # batch_size 必须大于1, 不然在计算loss的时候Batch这个维度会被squeeze掉
+    plot_every_iter = 500
 
 
 opt = Config()
