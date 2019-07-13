@@ -5,6 +5,7 @@ import visdom
 import numpy as np
 from config import opt
 from torch import optim
+from torch.optim import lr_scheduler
 from model import EyeNet_gaze, EyeNet_ldmk
 from model.utils import GazeEstimatBlock
 from torch.nn import MSELoss, SmoothL1Loss
@@ -12,7 +13,7 @@ from vis import visualize_sample_gaze, vis_lines
 from torchvision import transforms
 from torch.utils.data import DataLoader
 from data.dataset import UnityEyeDataset, MPIIGazeDataset
-from data.transforms import ToTensor, CropEye
+from data.transforms import ToTensor, CropEye, RandomTranslate
 
 
 def train(datasets):
@@ -22,7 +23,7 @@ def train(datasets):
     :return:
     """
 
-    vis = visdom.Visdom(env='EyeNet_gaze-0.1', port=11223)
+    vis = visdom.Visdom(env='EyeNet_gaze-MPIIGaze_01', port=11223)
     dataloaders = {phase: DataLoader(dataset=datasets[phase] , batch_size=opt.batch_size, shuffle=True, num_workers=4)
                    for phase in ['train', 'val']}
 
@@ -41,16 +42,25 @@ def train(datasets):
     # num_ftrs = 128  # 这里设置成了固定值
     # net.look_vector_predictor = GazeEstimatBlock(num_ftrs, 2)
 
+    # 断点继续训练
+    if opt.checkpoint_path:
+        checkpoint = torch.load(opt.checkpoint_path, map_location=opt.device)
+        net.load_state_dict(checkpoint['net_state_dict'])
+        start_epoch = checkpoint['epoch'] + 1
+        best_epoch_loss = checkpoint['val_epoch_loss']
+
     net.float()
     net.to(opt.device)
     criterion = MSELoss()
     optimizer = optim.Adam(net.parameters(), lr=opt.lr, weight_decay=opt.weight_decay)
+    exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=2)
 
     for epoch in range(start_epoch, opt.epochs, 1):
         train_epoch_loss = 0.0
         val_epoch_loss = 0.0
         for phase in ['train', 'val']:
             if phase == 'train':
+                exp_lr_scheduler.step()
                 sample_num = len(datasets[phase])
                 iter_per_epoch = math.ceil(sample_num / opt.batch_size)
                 for itr, batch in enumerate(dataloaders[phase]):
@@ -158,6 +168,6 @@ if __name__ == '__main__':
     # train(datasets)
 
     # MPIIGaze
-    tsf = ToTensor()
-    datasets = {phase: MPIIGazeDataset(opt.MPIIGaze_img_dir, opt.MPIIGaze_train_txt, sub_set=opt.MPIIGaze_sub_set, tsf=tsf) for phase in ['train', 'val']}
+    tsf = transforms.Compose([RandomTranslate(), ToTensor()])
+    datasets = {phase: MPIIGazeDataset(opt.MPIIGaze_img_dir, getattr(opt, "MPIIGaze_" + phase + "_txt"), tsf=tsf) for phase in ['train', 'val']}
     train(datasets)
